@@ -15,24 +15,44 @@ type Server struct {
 }
 
 func (s *Server) Initialize(ctx context.Context, params *protocol.InitializeParams) (*protocol.InitializeResult, error) {
-	return nil, ErrNotImplemented
+	log.Printf("Initialize: %#v\n", params)
+	return &protocol.InitializeResult{
+		ServerInfo: &protocol.ServerInfo{
+			Name:    "dummy",
+			Version: "v0.0.0",
+		},
+		Capabilities: protocol.ServerCapabilities{
+			TextDocumentSync: protocol.TextDocumentSyncOptions{
+				OpenClose: true,
+				Change:    protocol.TextDocumentSyncKindIncremental,
+			},
+		},
+	}, nil
 }
 
 func (s *Server) Initialized(ctx context.Context, params *protocol.InitializedParams) error {
-	return ErrNotImplemented
+	log.Printf("Initialized: %#v\n", params)
+	return nil
+}
+
+func (s *Server) DidChange(ctx context.Context, params *protocol.DidChangeTextDocumentParams) error {
+	log.Printf("DidChange: %#v\n", params)
+	return nil
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
-	return ErrNotImplemented
+	log.Println("Shutdown")
+	return nil
 }
 
 func (s *Server) Exit(ctx context.Context) error {
-	return ErrNotImplemented
+	log.Println("Exit")
+	return nil
 }
 
 func main() {
 	log.Println("Starting LSP server...")
-	handler := protocol.ServerHandler(&DefaultServer{}, nil)
+	handler := protocol.ServerHandler(&Server{}, nil)
 	stream := jsonrpc2.NewStream(struct {
 		io.Reader
 		io.Writer
@@ -43,10 +63,9 @@ func main() {
 		Closer: io.NopCloser(nil),
 	})
 	conn := jsonrpc2.NewConn(stream)
-
-	conn.Done()
-
-	if err := conn.Run(context.Background(), handler); err != nil {
+	conn.Go(context.Background(), handler)
+	<-conn.Done()
+	if err := conn.Err(); err != nil {
 		log.Fatal(err)
 	}
 }
