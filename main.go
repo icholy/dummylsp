@@ -63,10 +63,10 @@ func main() {
 	output := os.Stderr
 	if logfile != "" {
 		var err error
-		output, err = os.OpenFile(logfile, os.O_APPEND|os.O_CREATE, os.ModePerm)
+		output, err = os.OpenFile(logfile, os.O_RDWR|os.O_APPEND|os.O_CREATE, os.ModePerm)
 		if err != nil {
 			print(err)
-			os.Exit(0)
+			os.Exit(1)
 		}
 	}
 	log := slog.New(slog.NewTextHandler(output, &slog.HandlerOptions{}))
