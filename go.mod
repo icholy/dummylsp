@@ -1,4 +1,4 @@
-module dummylsp
+module github.com/icholy/dummylsp
 
 go 1.22.0
 
