@@ -2,8 +2,9 @@ package main
 
 import (
 	"context"
+	"flag"
 	"io"
-	"log"
+	"log/slog"
 	"os"
 
 	"go.lsp.dev/jsonrpc2"
@@ -11,11 +12,12 @@ import (
 )
 
 type Server struct {
+	Log *slog.Logger
 	DefaultServer
 }
 
 func (s *Server) Initialize(ctx context.Context, params *protocol.InitializeParams) (*protocol.InitializeResult, error) {
-	log.Printf("Initialize: %#v\n", params)
+	s.Log.Info("Initialize", "params", params)
 	return &protocol.InitializeResult{
 		ServerInfo: &protocol.ServerInfo{
 			Name:    "dummy",
@@ -31,28 +33,33 @@ func (s *Server) Initialize(ctx context.Context, params *protocol.InitializePara
 }
 
 func (s *Server) Initialized(ctx context.Context, params *protocol.InitializedParams) error {
-	log.Printf("Initialized: %#v\n", params)
+	s.Log.Debug("Initialized", "params", params)
 	return nil
 }
 
 func (s *Server) DidChange(ctx context.Context, params *protocol.DidChangeTextDocumentParams) error {
-	log.Printf("DidChange: %#v\n", params)
+	s.Log.Debug("DidChange", "params", params)
 	return nil
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
-	log.Println("Shutdown")
+	s.Log.Debug("Shutdown")
 	return nil
 }
 
 func (s *Server) Exit(ctx context.Context) error {
-	log.Println("Exit")
+	s.Log.Debug("Exit")
 	return nil
 }
 
 func main() {
-	log.Println("Starting LSP server...")
-	handler := protocol.ServerHandler(&Server{}, nil)
+	var level slog.Level
+	flag.Func("level", "log level", func(s string) error {
+		return level.UnmarshalText([]byte(s))
+	})
+	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{}))
+	log.Info("Starting LSP server...")
+	handler := protocol.ServerHandler(&Server{Log: log}, nil)
 	stream := jsonrpc2.NewStream(struct {
 		io.Reader
 		io.Writer
@@ -66,6 +73,7 @@ func main() {
 	conn.Go(context.Background(), handler)
 	<-conn.Done()
 	if err := conn.Err(); err != nil {
-		log.Fatal(err)
+		log.Error("connection error", "err", err)
+		os.Exit(1)
 	}
 }
